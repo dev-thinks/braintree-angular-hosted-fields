@@ -103,7 +103,7 @@ export class AppComponent implements OnInit {
   }
 
   // Fetches the label element for the corresponding field
-  findLabel(field: braintree.HostedFieldsHostedFieldsFieldData) {
+  findLabel(field: any) {
     return document.querySelector('.hosted-field--label[for="' + field.container.id + '"]');
   }
 }
