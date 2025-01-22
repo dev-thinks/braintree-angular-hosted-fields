@@ -96,9 +96,58 @@ export class AppComponent implements OnInit {
       */
 
       // submit payload.nonce to the server from here
-    }).catch((error) => {
-      console.log(error);
-      // perform custom validation here or log errors
+    }).catch((tokenizeErr) => {
+      switch (tokenizeErr.code) {
+        case 'HOSTED_FIELDS_FIELDS_EMPTY':
+          // occurs when none of the fields are filled in
+          console.error('All fields are empty! Please fill out the form.');
+          break;
+        case 'HOSTED_FIELDS_FIELDS_INVALID':
+          // occurs when certain fields do not pass client side validation
+          console.error('Some fields are invalid:', tokenizeErr.details.invalidFieldKeys);
+
+          // you can also programmatically access the field containers for the invalid fields
+          // tokenizeErr.details.invalidFields.forEach(function(fieldContainer) {
+          //   fieldContainer.className = 'invalid';
+          // });
+
+          let v;
+for (v of Object.values(tokenizeErr.details.invalidFields))  {
+v.className = 'hosted-field braintree-hosted-fields-invalid';
+}
+
+          break;
+        case 'HOSTED_FIELDS_TOKENIZATION_FAIL_ON_DUPLICATE':
+          // occurs when:
+          //   * the client token used for client authorization was generated
+          //     with a customer ID and the fail on duplicate payment method
+          //     option is set to true
+          //   * the card being tokenized has previously been vaulted (with any customer)
+          // See: https://developer.paypal.com/braintree/docs/reference/request/client-token/generate#options.fail_on_duplicate_payment_method
+          console.error('This payment method already exists in your vault.');
+          break;
+        case 'HOSTED_FIELDS_TOKENIZATION_CVV_VERIFICATION_FAILED':
+          // occurs when:
+          //   * the client token used for client authorization was generated
+          //     with a customer ID and the verify card option is set to true
+          //     and you have credit card verification turned on in the Braintree
+          //     control panel
+          //   * the cvv does not pass verification (https://developer.paypal.com/braintree/docs/reference/general/testing#avs-and-cvv/cid-responses)
+          // See: https://developer.paypal.com/braintree/docs/reference/request/client-token/generate#options.verify_card
+          console.error('CVV did not pass verification');
+          break;
+        case 'HOSTED_FIELDS_FAILED_TOKENIZATION':
+          // occurs for any other tokenization error on the server
+          console.error('Tokenization failed server side. Is the card valid?');
+          break;
+        case 'HOSTED_FIELDS_TOKENIZATION_NETWORK_ERROR':
+          // occurs when the Braintree gateway cannot be contacted
+          console.error('Network error occurred when tokenizing.');
+          break;
+        default:
+          console.error('Something bad happened!', tokenizeErr);
+        // perform custom validation here or log errors
+      }
     });
   }
 
