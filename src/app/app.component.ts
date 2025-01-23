@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import {Component, ElementRef, OnInit, Renderer2, ViewChild} from '@angular/core';
 import * as braintree from 'braintree-web';
+import * as $ from 'jquery';
 
 @Component({
   selector: 'app-root',
@@ -7,80 +8,195 @@ import * as braintree from 'braintree-web';
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit {
+@ViewChild('ccName') ccName: ElementRef;
+@ViewChild('email') email: ElementRef;
 
   hostedFieldsInstance: braintree.HostedFields;
   cardholdersName: string;
 
-  ngOnInit() {
-    this.createBraintreeUI(); // in afterViewInit so that the view is
-                              // initialised before event listeners are added to them
+  constructor(private renderer: Renderer2) {
   }
 
+  ngOnInit() {
+    this.createBraintreeUI();
+
+
+
+    // var ccName = $('#cc-name');
+    // var email = $('#email');
+    //
+    // ccName.on('change', function () {
+    //  // @ts-ignore
+    //   this.validateInput(ccName);
+    // });
+    //
+    // email.on('change', this.validateEmail);
+  }
+
+
+     validateInput(element) {
+      // very basic validation, if the
+      // fields are empty, mark them
+      // as invalid, if not, mark them
+      // as valid
+
+      if (!element.value.trim()) {
+        this.setValidityClasses(element, false);
+
+        return false;
+      }
+
+      this.setValidityClasses(element, true);
+
+      return true;
+    }
+
+     validateEmail () {
+      var baseValidity = this.validateInput(this.email.nativeElement);
+
+      if (!baseValidity) {
+        return false;
+      }
+
+      if (this.email.nativeElement.value.indexOf('@') === -1) {
+        this.setValidityClasses(this.email.nativeElement, false);
+        return false;
+      }
+
+      this.setValidityClasses(this.email.nativeElement, true);
+      return true;
+    }
+
+    setValidityClasses(element, validity) {
+      if (validity) {
+        this.renderer.removeClass(element, 'is-invalid');
+        this.renderer.addClass(element, 'is-valid');
+      } else {
+        this.renderer.addClass(element, 'is-invalid');
+        this.renderer.removeClass(element, 'is-valid');
+      }
+    }
+
+
   createBraintreeUI() {
-    braintree.client.create({
-      authorization: 'sandbox_gphvx7p3_g7mpzfk6pq3fgstw'
-    }).then((clientInstance) => {
-      braintree.hostedFields.create({
-        client: clientInstance,
-        styles: {
-          // Override styles for the hosted fields
-        },
 
-        // The hosted fields that we will be using
-        // NOTE : cardholder's name field is not available in the field options
-        // and a separate input field has to be used incase you need it
-        fields: {
-          number: {
-            selector: '#card-number',
-            placeholder: '1111 1111 1111 1111'
-          },
-          cvv: {
-            selector: '#cvv',
-            placeholder: '111'
-          },
-          expirationDate: {
-            selector: '#expiration-date',
-            placeholder: 'MM/YY'
-          }
-        }
-      }).then((hostedFieldsInstance) => {
+braintree.client.create({
+  authorization: 'sandbox_g42y39zw_348pk9cgf3bgyw2b'
+}, function(err, clientInstance) {
+  if (err) {
+    console.error(err);
+    return;
+  }
 
-        this.hostedFieldsInstance = hostedFieldsInstance;
+  braintree.hostedFields.create({
+    // preventAutofill: false,
+    client: clientInstance,
+    styles: {
+      input: {
+        // change input styles to match
+        // bootstrap styles
+        'font-size': '1rem',
+        color: '#495057'
+      }
+    },
+    fields: {
+      cardholderName: {
+        selector: '#cc-name',
+        placeholder: 'Name as it appears on your card'
+      },
+      number: {
+        selector: '#cc-number',
+        placeholder: '4111 1111 1111 1111'
+      },
+      cvv: {
+        selector: '#cc-cvv',
+        placeholder: '123'
+      },
+      expirationDate: {
+        selector: '#cc-expiration',
+        placeholder: 'MM / YY'
+      }
+    }
+  }, function(err, hostedFieldsInstance) {
+    if (err) {
+      console.error(err);
+      return;
+    }
 
-        hostedFieldsInstance.on('focus', (event) => {
-          const field = event.fields[event.emittedBy];
-          const label = this.findLabel(field);
-          label.classList.remove('filled'); // added and removed css classes
-          // can add custom code for custom validations here
-        });
+    hostedFieldsInstance.on('cardTypeChange', function(event) {
+      var cardBrand = $('#card-brand');
+      var cvvLabel = $('[for="cc-cvv"]');
 
-        hostedFieldsInstance.on('blur', (event) => {
-          const field = event.fields[event.emittedBy];
-          const label = this.findLabel(field); // fetched label to apply custom validations
-          // can add custom code for custom validations here
-        });
+      if (event.cards.length === 1) {
+        var card = event.cards[0];
 
-        hostedFieldsInstance.on('empty', (event) => {
-          const field = event.fields[event.emittedBy];
-          // can add custom code for custom validations here
-        });
-
-        hostedFieldsInstance.on('validityChange', (event) => {
-          const field = event.fields[event.emittedBy];
-          const label = this.findLabel(field);
-          if (field.isPotentiallyValid) { // applying custom css and validations
-            label.classList.remove('invalid');
-          } else {
-            label.classList.add('invalid');
-          }
-          // can add custom code for custom validations here
-        });
-      });
+        // change pay button to specify the type of card
+        // being used
+        cardBrand.text(card.niceType);
+        // update the security code label
+        cvvLabel.text(card.code.name);
+      } else {
+        // reset to defaults
+        cardBrand.text('Card');
+        cvvLabel.text('CVV');
+      }
     });
+
+
+    hostedFieldsInstance.on('validityChange', function(event) {
+      var field = event.fields[event.emittedBy];
+
+      // Remove any previously applied error or warning classes
+      $(field.container).removeClass('is-valid');
+      $(field.container).removeClass('is-invalid');
+
+      if (field.isValid) {
+        $(field.container).addClass('is-valid');
+      } else if (field.isPotentiallyValid) {
+        // skip adding classes if the field is
+        // not valid, but is potentially valid
+      } else {
+        $(field.container).addClass('is-invalid');
+      }
+    });
+
+    // function
+
+
+
+  });
+});
   }
 
   // Tokenize the collected details so that they can be sent to your server
-  tokenizeUserDetails() {
+  tokenizeUserDetails(event) {
+    event.preventDefault();
+
+      var formIsInvalid = false;
+      var state = this.hostedFieldsInstance.getState();
+
+      // perform validations on the non-Hosted Fields
+      // inputs
+      if (!this.validateEmail()) {
+        formIsInvalid = true;
+      }
+
+      // Loop through the Hosted Fields and check
+      // for validity, apply the is-invalid class
+      // to the field container if invalid
+      Object.keys(state.fields).forEach(function(field) {
+        if (!state.fields[field].isValid) {
+          $(state.fields[field].container).addClass('is-invalid');
+          formIsInvalid = true;
+        }
+      });
+
+      if (formIsInvalid) {
+        // skip tokenization request if any fields are invalid
+        return;
+      }
+
+
     this.hostedFieldsInstance.tokenize({cardholderName: this.cardholdersName}).then((payload) => {
       console.log(payload);
        // Example payload return on succesful tokenization
@@ -101,6 +217,7 @@ export class AppComponent implements OnInit {
         case 'HOSTED_FIELDS_FIELDS_EMPTY':
           // occurs when none of the fields are filled in
           console.error('All fields are empty! Please fill out the form.');
+
           break;
         case 'HOSTED_FIELDS_FIELDS_INVALID':
           // occurs when certain fields do not pass client side validation
@@ -111,9 +228,9 @@ export class AppComponent implements OnInit {
           //   fieldContainer.className = 'invalid';
           // });
 
-          let v;
-for (v of Object.values(tokenizeErr.details.invalidFields))  {
-v.className = 'hosted-field braintree-hosted-fields-invalid';
+          let v2;
+for (v2 of Object.values(tokenizeErr.details.invalidFields))  {
+v2.className = 'hosted-field braintree-hosted-fields-invalid';
 }
 
           break;
