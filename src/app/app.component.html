@@ -5,7 +5,7 @@
     <div class="row">
       <div class="col-sm-6 mb-3">
         <label for="cc-name">Cardholder Name</label>
-        <div class="form-control" id="cc-name" #ccName (blur)="validateInput(this)"></div>
+        <div class="form-control" id="cc-name"></div>
         <small class="text-muted">Full name as displayed on card</small>
         <div class="invalid-feedback">
           Name on card is required
@@ -13,7 +13,7 @@
       </div>
       <div class="col-sm-6 mb-3">
         <label for="email">Email</label>
-        <input type="email" class="form-control" id="email" #email (blur)="validateEmail()" placeholder="you@example.com">
+        <input type="email" class="form-control" id="email" placeholder="you@example.com">
         <div class="invalid-feedback">
           Please enter a valid email address for updates.
         </div>
@@ -46,7 +46,7 @@
 
     <hr class="mb-4">
     <div class="text-center">
-    <button class="btn btn-primary btn-lg" type="submit" (click)="tokenizeUserDetails($event)">Pay with <span id="card-brand">Card</span></button>
+    <button class="btn btn-primary btn-lg" type="submit" >Pay with <span id="card-brand">Card</span></button>
     </div>
   </form>
 </div>
